@@ -50,7 +50,6 @@ export default function DealCheck({ settings, user, onCreateItem }) {
       const imageDataUrls = await Promise.all(photos.map((p) => blobToDataUrl(p.blob)))
       const r = await evaluateDeal({
         apiKey: settings.anthropic_key,
-        model: settings.ai_model,
         imageDataUrls,
         text,
         buyPrice: buyPrice === '' ? null : Number(buyPrice.replace(',', '.')),
@@ -114,7 +113,7 @@ export default function DealCheck({ settings, user, onCreateItem }) {
         </div>
         <label className="row small" style={{ fontWeight: 600 }}>
           <input type="checkbox" style={{ width: 'auto' }} checked={web} onChange={(e) => setWeb(e.target.checked)} />
-          Hae hintadataa verkosta (tarkempi, n. 20–40 s)
+          Hae hintadataa verkosta (tarkempi, n. 3–6 senttiä · ilman n. 0,5 senttiä)
         </label>
         <button className="btn primary block" onClick={run} disabled={busy}>
           {busy ? <><span className="spinner" /> Arvioidaan…</> : 'Arvioi'}
@@ -145,6 +144,7 @@ export default function DealCheck({ settings, user, onCreateItem }) {
                 </ul>
               </details>
             )}
+            {result.cost_usd != null && <div className="small muted">Arvion hinta noin {(result.cost_usd * 100).toFixed(1)} senttiä</div>}
             <button className="btn" onClick={bought}>Ostin tämän → lisää varastoon</button>
           </div>
         )}

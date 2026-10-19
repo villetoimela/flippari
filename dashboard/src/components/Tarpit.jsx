@@ -94,7 +94,6 @@ export default function Tarpit({ settings, onCreateItem }) {
     try {
       const r = await evaluateDeal({
         apiKey: settings.anthropic_key,
-        model: settings.ai_model,
         text: `${f.title} (${f.subtitle}). Ilmoitus: ${f.url}. Vertailumediaani ${f.median} €.`,
         buyPrice: f.price,
         minProfit: 10,

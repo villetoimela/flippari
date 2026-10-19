@@ -44,6 +44,22 @@ const LISTING_TOOL = {
   },
 }
 
+// $ / miljoona tokenia (input, output). Verkkohaku $0.01 / haku.
+const PRICES = {
+  'claude-haiku-4-5': [1, 5],
+  'claude-sonnet-4-5': [3, 15],
+  'claude-opus-4-1': [15, 75],
+}
+export function costOf(json, model) {
+  const [pin, pout] = PRICES[model] || PRICES['claude-sonnet-4-5']
+  const u = json?.usage || {}
+  const tokensIn = (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0) * 0.1
+  const searches = u.server_tool_use?.web_search_requests || 0
+  return (tokensIn * pin + (u.output_tokens || 0) * pout) / 1e6 + searches * 0.01
+}
+
+export const DEAL_MODEL = 'claude-haiku-4-5'
+
 async function callClaude({ apiKey, model, body }) {
   if (!apiKey) throw new Error('Lisää Claude API -avain asetuksiin.')
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -98,7 +114,7 @@ export async function generateListing({ apiKey, model, imageUrls, hints, signatu
  * Palauttaa { verdict, item, median_price, price_low, price_high, expected_sale_price,
  *            profit, sell_speed, platforms, reasoning, sources[] }
  */
-export async function evaluateDeal({ apiKey, model, imageDataUrls = [], text, buyPrice, minProfit = 10, useWebSearch = true }) {
+export async function evaluateDeal({ apiKey, model = DEAL_MODEL, imageDataUrls = [], text, buyPrice, minProfit = 10, useWebSearch = true }) {
   const content = [
     ...imageDataUrls.slice(0, 4).map((d) => {
       const [meta, data] = d.split(',')
@@ -113,7 +129,7 @@ Tuote: ${text || '(katso kuvat)'}
 Ostohinta: ${buyPrice != null && buyPrice !== '' ? buyPrice + ' €' : 'ei tiedossa – kerro maksimiostohinta'}
 Myyjän tavoite: vähintään ${minProfit} € voittoa per tuote alustamaksujen ja postikulujen jälkeen.
 
-${useWebSearch ? 'Hae verkosta toteutuneita tai pyydettyjä hintoja (Tori, Vinted, Huuto.net, eBay sold, Grailed tms.) ja laske mediaani. Käytetyn tuotteen hinta, ei uuden.' : 'Arvioi hinnat oman tietämyksesi perusteella.'}
+${useWebSearch ? 'Tee korkeintaan 2 tarkkaa verkkohakua (esim. Tori + Vinted tai eBay sold) toteutuneista tai pyydetyistä hinnoista ja laske mediaani. Käytetyn tuotteen hinta, ei uuden.' : 'Arvioi hinnat oman tietämyksesi perusteella.'}
 
 Vastaa LOPUKSI pelkällä JSON-objektilla (ei muuta tekstiä sen jälkeen) tässä muodossa:
 {"verdict":"OSTA|HARKITSE|ÄLÄ OSTA","item":"tunnistettu tuote","median_price":0,"price_low":0,"price_high":0,"expected_sale_price":0,"max_buy_price":0,"profit":0,"sell_speed":"nopea|keskiverto|hidas","platforms":["Tori"],"reasoning":"2–4 lausetta","authenticity":"mitä tarkistaa tai tyhjä"}`,
@@ -123,7 +139,7 @@ Vastaa LOPUKSI pelkällä JSON-objektilla (ei muuta tekstiä sen jälkeen) täss
     max_tokens: 3000,
     messages: [{ role: 'user', content }],
   }
-  if (useWebSearch) body.tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }]
+  if (useWebSearch) body.tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: 2 }]
   const json = await callClaude({ apiKey, model, body })
 
   const texts = (json.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n')
@@ -142,5 +158,6 @@ Vastaa LOPUKSI pelkällä JSON-objektilla (ei muuta tekstiä sen jälkeen) täss
     }
   }
   result.sources = sources.slice(0, 8)
+  result.cost_usd = Math.round(costOf(json, model) * 1000) / 1000
   return result
 }
