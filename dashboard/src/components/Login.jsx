@@ -17,7 +17,7 @@ export default function Login() {
         const { error } = await sb().auth.signInWithPassword({ email, password })
         if (error) throw error
       } else {
-        const { data, error } = await sb().auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } })
+        const { data, error } = await sb().auth.signUp({ email, password, options: { emailRedirectTo: window.location.href.split('#')[0] } })
         if (error) throw error
         if (!data.session) setMsg({ type: 'ok', text: 'Tili luotu. Klikkaa sähköpostiin tullutta vahvistuslinkkiä ja kirjaudu sitten tällä sivulla. (Jos linkki avaa väärän sivun, ei haittaa – tili on silti vahvistettu.)' })
       }
