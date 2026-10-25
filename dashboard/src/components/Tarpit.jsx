@@ -173,6 +173,9 @@ export default function Tarpit({ settings, onCreateItem }) {
         <div className="items">
           {visible.map((f) => {
             const ev = evals[f.id]
+            const parts = (f.subtitle || '').split(' · ')
+            const post = parts.find((x) => x.startsWith('posti '))?.slice(6)   // "5,87 €" tai "~12 € arvio, Tanska"
+            const subtitle = parts.filter((x) => !x.startsWith('posti ')).join(' · ')
             return (
               <article key={f.id} className="card item" style={{ cursor: 'default' }}>
                 <a className="thumb" href={f.url} target="_blank" rel="noreferrer" style={{ position: 'relative' }}>
@@ -181,21 +184,19 @@ export default function Tarpit({ settings, onCreateItem }) {
                 </a>
                 <div className="meta">
                   <div className="title">{f.title}</div>
-                  <div className="small muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.subtitle}</div>
+                  <div className="small muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitle}</div>
                   <div className="row" style={{ justifyContent: 'space-between' }}>
                     <span>
                       <strong className="mono">{eur(f.price)}</strong>
-                      {/posti/.test(f.subtitle || '') && <span className="small muted"> sis. posti + suoja</span>}
+                      {post && <span className="small muted"> sis. posti {post}</span>}
                     </span>
                     <span className="small mono" style={{ color: 'var(--accent)', fontWeight: 800 }}>+{eur(profitOf(f))}</span>
                   </div>
                   <div className="small muted">
                     {f.est_resale_low ? `myynti ${eur(f.est_resale_low)}–${eur(f.est_resale_high)}` : `vertailu ${eur(f.median)}`} · {ago(f.first_seen)}
                   </div>
-                  {f.ai_reason && <div className="small" style={{ color: 'var(--accent)' }}>✓ {f.ai_reason}</div>}
                   <div className="badges">
                     <span className={`badge ${f.platform}`}>{PLATFORMS[f.platform]?.name || f.platform}</span>
-                    {f.search_name && <span className="badge">{f.search_name}</span>}
                   </div>
                   {ev && !ev.busy && (
                     <div className="small" style={{ marginTop: 4 }}>
