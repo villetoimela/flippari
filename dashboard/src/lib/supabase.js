@@ -117,10 +117,12 @@ export async function reorderImages(images) {
 }
 
 const urlCache = new Map()
+const isExternal = (p) => /^https?:\/\//.test(p)   // Vintedistä tuotujen tuotteiden kuvat ovat suoria linkkejä
+
 export async function signedUrls(paths, expiresIn = 3600) {
   if (!paths.length) return []
   const now = Date.now()
-  const missing = paths.filter((p) => !(urlCache.get(p)?.exp > now + 60_000))
+  const missing = paths.filter((p) => !isExternal(p) && !(urlCache.get(p)?.exp > now + 60_000))
   if (missing.length) {
     const { data, error } = await sb().storage.from(BUCKET).createSignedUrls(missing, expiresIn)
     if (error) throw error
@@ -128,7 +130,7 @@ export async function signedUrls(paths, expiresIn = 3600) {
       if (d.signedUrl) urlCache.set(d.path, { url: d.signedUrl, exp: now + expiresIn * 1000 })
     }
   }
-  return paths.map((p) => urlCache.get(p)?.url || null)
+  return paths.map((p) => (isExternal(p) ? p : urlCache.get(p)?.url || null))
 }
 
 export async function fetchSettings(userId) {

@@ -12,8 +12,8 @@ import Tarpit from './components/Tarpit.jsx'
 export const Toast = React.createContext(() => {})
 
 const TABS = [
-  { id: 'inventory', label: 'Varasto' },
   { id: 'tarpit', label: 'Tärpit' },
+  { id: 'inventory', label: 'Varasto' },
   { id: 'deal', label: 'Ostoapuri' },
   { id: 'settings', label: 'Asetukset' },
 ]
@@ -36,7 +36,7 @@ export default function App() {
 }
 
 function Main({ user }) {
-  const [tab, setTab] = useState('inventory')
+  const [tab, setTab] = useState('tarpit')
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [settings, setSettings] = useState(null)

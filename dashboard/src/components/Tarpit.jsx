@@ -73,6 +73,9 @@ export default function Tarpit({ settings, onCreateItem }) {
   const visible = useMemo(() => {
     const needle = q.trim().toLowerCase()
     return finds.filter((f) =>
+      // flip-radarin fokustila kirjoittaa jokaiselle tärpille kaistarivin (ai_reason); ilman sitä tulleet
+      // ovat fokusta edeltävää kohinaa ja putoavat muutenkin pois 7 päivän ikkunasta.
+      (f.source !== 'flip-radar' || f.ai_reason) &&
       (view === 'new' ? f.status === 'new' : view === 'saved' ? f.status === 'saved' : f.status !== 'dismissed') &&
       profitOf(f) >= minNet &&
       (platform === 'all' || f.platform === platform) &&
