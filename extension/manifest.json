@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Flippari – ristiinlistaus",
   "short_name": "Flippari",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Täyttää Torin ja Vintedin ilmoituslomakkeet Flippari-dashboardista yhdellä klikkauksella.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqZ4AlXw/DesV8yzDNAGj1f3+gLg+lBdPuZ6EgD4O6D9CDohwP8ytkLbZRE6qIiasSLFQ2gx0bbAIO2ZqcPedqT8IzAjeoNtwoCm5UD1lSTA1HftBKmM7qldYGyCvd7ienMOkfUiUxYUld4xgyyBnySWj8XhUY9UH7nGkeb8fHZ4CTH9PXnPXDGXHb0JiInvEUTWckKF4+r2PTNRuMFnFviVGeLmC5fSny++W7bQJ5lnvax8LWviL1EFbwrQ3vaMfqH5HtidVL25RhVHiUaV8AxLyfWj5m131VloAf00aUzFLfx5AU4xLp6hMdjqrTPyXH3U5n5Pba05PclG6clj0NwIDAQAB",
   "icons": {

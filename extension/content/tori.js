@@ -88,16 +88,28 @@
     satisfactory: 'Kohtalainen',
   }
 
-  // ---------- vaihe 1: "Luo ilmoitus" -valinta ----------
+  // Torin valintakortit ovat mainospalikan shadow DOMissa (10/2026) -> haku käy läpi myös shadow-juuret.
+  function deepQueryAll(root, selector, out = []) {
+    out.push(...root.querySelectorAll(selector))
+    for (const el of root.querySelectorAll('*')) if (el.shadowRoot) deepQueryAll(el.shadowRoot, selector, out)
+    return out
+  }
+
+  // ---------- vaihe 1: "Luo ilmoitus" -valinta (klikataan "Tori"-korttia automaattisesti) ----------
   if (location.pathname.startsWith('/create-item/start')) {
     F.renderPanel({ status: 'Avataan Torin ilmoituslomake…', rows: [] })
     const card = await F.waitFor(() => {
-      const cards = [...document.querySelectorAll('w-card, .market-card, [class*="cursor-pointer"]')]
-      return cards.find((c) => /^\s*Tori\b/.test(c.innerText || '') && /Vaatteita|huonekaluja/i.test(c.innerText || ''))
-    })
+      const cards = deepQueryAll(document, 'w-card, .market-card, [class*="cursor-pointer"]')
+      return cards.find((c) => /^\s*Tori\b/.test(c.textContent || '') && /Vaatteita|lastentarvik|huonekalu/i.test(c.textContent || ''))
+    }, { timeout: 20000 })
     if (card) {
       const clickable = card.querySelector('[class*="cursor-pointer"]') || card
       F.realClick(clickable)
+      // Jos Tori vaihtaa lomakkeelle ilman sivulatausta, tämä skripti ei käynnistyisi uudelleen ->
+      // ladataan sivu, jolloin täyttö (vaihe 2) alkaa itsestään.
+      F.onUrlChange((url) => {
+        if (/\/recommerce\/create\/\d+/.test(url)) setTimeout(() => { if (!window.__flippariToriForm) location.reload() }, 2500)
+      })
     } else {
       F.renderPanel({ status: 'Klikkaa "Tori"-korttia, niin jatkan täyttöä.', rows: [] })
     }
@@ -107,6 +119,7 @@
   // ---------- vaihe 2: lomake ----------
   const m = location.pathname.match(/\/recommerce\/create\/(\d+)/)
   if (!m) return
+  window.__flippariToriForm = true
   const draftId = m[1]
   await F.send({ type: 'updateJob', patch: { draftId } })
 
