@@ -42,18 +42,21 @@ export default function Inventory({ items, loading, onOpen }) {
     const sold = items.filter((i) => ['sold', 'shipped'].includes(i.status))
     const monthAgo = Date.now() - 30 * 864e5
     const sold30 = sold.filter((i) => i.sold_at && new Date(i.sold_at).getTime() > monthAgo)
-    // Voitto vain tuotteista, joiden ostohinta tiedetään (muuten koko myyntihinta näkyisi voittona).
-    const withCost = (arr) => arr.filter((i) => i.purchase_price != null)
-    const profit = (arr) => withCost(arr).reduce((s, i) => s + (Number(i.sold_price) || 0) - Number(i.purchase_price), 0)
+    // Voitto näytetään vain, kun jokaisen tuotteen ostohinta tiedetään. Muuten näytetään myynti:
+    // osittainen voitto antaisi väärän kuvan (esim. Vintedistä tuodut myynnit ilman ostohintaa).
+    const hasCost = (arr) => arr.every((i) => i.purchase_price != null)
+    const sum = (arr, f) => arr.reduce((s, i) => s + (Number(f(i)) || 0), 0)
+    const profit = (arr) => (hasCost(arr) ? sum(arr, (i) => i.sold_price) - sum(arr, (i) => i.purchase_price) : null)
     return {
       stockCount: unsold.length,
-      stockValue: unsold.reduce((s, i) => s + (Number(i.price) || 0), 0),
-      stockCost: unsold.reduce((s, i) => s + (Number(i.purchase_price) || 0), 0),
+      stockValue: sum(unsold, (i) => i.price),
+      stockCost: hasCost(unsold) ? sum(unsold, (i) => i.purchase_price) : null,
       sold30: sold30.length,
+      revenue30: sum(sold30, (i) => i.sold_price),
       profit30: profit(sold30),
-      profitAll: profit(sold),
       soldCount: sold.length,
-      soldWithCost: withCost(sold).length,
+      revenueAll: sum(sold, (i) => i.sold_price),
+      profitAll: profit(sold),
     }
   }, [items])
 
@@ -72,10 +75,14 @@ export default function Inventory({ items, loading, onOpen }) {
   return (
     <>
       <section className="kpis">
-        <div className="card kpi"><div className="label">Varastossa</div><div className="value">{kpi.stockCount} kpl</div><div className="small muted">ostettu {eur(kpi.stockCost)}</div></div>
+        <div className="card kpi"><div className="label">Varastossa</div><div className="value">{kpi.stockCount} kpl</div>{kpi.stockCost != null && <div className="small muted">ostettu {eur(kpi.stockCost)}</div>}</div>
         <div className="card kpi"><div className="label">Varaston myyntiarvo</div><div className="value">{eur(kpi.stockValue)}</div><div className="small muted">pyyntihinnoilla</div></div>
-        <div className="card kpi"><div className="label">Myyty 30 pv</div><div className="value">{kpi.sold30} kpl</div><div className="small muted">voitto {eur(kpi.profit30)}</div></div>
-        <div className="card kpi"><div className="label">Voitto yhteensä</div><div className="value">{eur(kpi.profitAll)}</div><div className="small muted">myynti − ostohinta ({kpi.soldWithCost}/{kpi.soldCount} kpl)</div></div>
+        <div className="card kpi"><div className="label">Myyty 30 pv</div><div className="value">{kpi.sold30} kpl</div><div className="small muted">{kpi.profit30 != null ? `voitto ${eur(kpi.profit30)}` : `myynti ${eur(kpi.revenue30)}`}</div></div>
+        {kpi.profitAll != null ? (
+          <div className="card kpi"><div className="label">Voitto yhteensä</div><div className="value">{eur(kpi.profitAll)}</div><div className="small muted">myynti − ostohinta</div></div>
+        ) : (
+          <div className="card kpi"><div className="label">Myynti yhteensä</div><div className="value">{eur(kpi.revenueAll)}</div><div className="small muted">{kpi.soldCount} kpl myyty</div></div>
+        )}
       </section>
 
       <div className="toolbar">
