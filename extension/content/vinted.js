@@ -43,13 +43,34 @@
   }
 
   // ---------- kategoriat ----------
-  async function setCategory(path) {
+  // Vintedin kategoriahaku toimii vain suomeksi. Ensisijaisesti valitaan kategoria-id:llä (Flippari laskee sen
+  // suomenkielisestä polusta), sitten tarkalla polulla ("Lehti" + "Yläkategoria > …"), lopuksi pisteytyksellä.
+  async function setCategory(path, catalogId) {
     const parts = String(path || '').split('>').map((s) => s.trim()).filter(Boolean)
     if (!parts.length) return { state: 'warn', value: 'ei annettu – valitse itse' }
     const content = await openDropdown('catalog-select-dropdown-input')
     if (!content) return { state: 'warn', value: 'valitsinta ei löytynyt' }
     const search = $('#catalog-search-input', content)
     const tokens = parts.map(F.norm)
+    const leaf = parts[parts.length - 1]
+    const parent = F.norm(parts.slice(0, -1).join(' > '))
+    F.setNativeValue(search, leaf)
+    const exact = await F.waitFor(() => {
+      if (catalogId) {
+        const byId = document.getElementById(`catalog-search-${catalogId}-result`)
+        if (byId) return byId
+      }
+      return $$('[id^="catalog-search-"][id$="-result"]', content).find((el) => {
+        const title = F.norm(el.querySelector('[class*="Cell__title"]')?.innerText)
+        const body = F.norm(el.querySelector('[class*="Cell__body"]')?.innerText)
+        return title === F.norm(leaf) && (!parent || body === parent)
+      })
+    }, { timeout: 4000 })
+    if (exact) {
+      F.realClick(exact)
+      await F.sleep(800)
+      return { state: 'ok', value: parts.join(' > ') }
+    }
 
     for (const q of [parts[parts.length - 1], parts[parts.length - 2]].filter(Boolean)) {
       F.setNativeValue(search, q)
@@ -144,7 +165,7 @@
     }
     F.realClick(cell)
     await F.sleep(400)
-    return { state: 'ok', value: cell.innerText.split('\n')[0] }
+    return { state: 'ok', value: (cell.querySelector('[class*="Cell__title"]')?.innerText || cell.innerText).split('\n')[0].trim() }
   }
 
   // ---------- väri ----------
@@ -236,7 +257,7 @@
       rows.push({ label: 'Kuvaus', ...setText('#description', p.description), copy: p.description })
       render('Täytetään…')
 
-      rows.push({ label: 'Kategoria', ...(await setCategory(p.category_vinted)) })
+      rows.push({ label: 'Kategoria', ...(await setCategory(p.category_vinted, p.category_vinted_id)) })
       render('Täytetään…')
       await F.sleep(1000)
 
@@ -250,7 +271,8 @@
       rows.push({ label: 'Materiaali', ...(await setMaterial([p.material_en, p.material])) })
       render('Täytetään…')
 
-      if (p.price != null) rows.push({ label: 'Hinta', ...setText('#price', Number(p.price).toFixed(2)) })
+      // Suomenkielinen Vinted lukee desimaalit pilkulla ("25.00" -> "epäluku €")
+      if (p.price != null) rows.push({ label: 'Hinta', ...setText('#price', Number(p.price).toFixed(2).replace('.', ',')) })
       await F.sleep(500)
       rows.push({ label: 'Paketti', ...setPackage(p.shipping_size) })
 

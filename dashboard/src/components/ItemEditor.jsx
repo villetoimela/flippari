@@ -7,6 +7,7 @@ import { generateListing, COLOR_CODES, COLOR_FI } from '../lib/ai.js'
 import { publishViaExtension, openForRemoval } from '../lib/extension.js'
 import { CONDITIONS, ITEM_STATUSES, PLATFORMS, SHIPPING_SIZES, eur } from '../lib/constants.js'
 import { TORI_PATHS } from '../lib/categories.js'
+import { VINTED_CATEGORY_IDS, VINTED_PATHS } from '../lib/vintedCategories.js'
 import { Toast } from '../App.jsx'
 import SellModal from './SellModal.jsx'
 
@@ -163,7 +164,7 @@ export default function ItemEditor({ itemId, user, settings, extVersion, onClose
   }
 
   // ---------- julkaisu ----------
-  async function publish(platform) {
+  async function publish(platform, { quiet = false } = {}) {
     await flush()
     if (!extVersion) return toast('Asenna Flippari-laajennus Chromeen (ohje Asetuksissa).')
     if (!images.length) return toast('Lisää ensin kuvat.')
@@ -183,16 +184,34 @@ export default function ItemEditor({ itemId, user, settings, extVersion, onClose
         material_en: item.material_en,
         category_tori: item.category_tori,
         category_vinted: item.category_vinted,
+        category_vinted_id: VINTED_CATEGORY_IDS[item.category_vinted] || null,
         shipping_size: item.shipping_size,
         postal_code: settings?.postal_code || '',
         images: imageUrls,
       })
       await upsertListing(itemId, platform, { status: 'pending', price: item.price })
-      await load()
-      onChanged?.()
+      if (!quiet) {
+        await load()
+        onChanged?.()
+      }
+      return true
     } catch (e) {
       toast(`Laajennus: ${e.message}`)
+      return false
     }
+  }
+
+  // Avaa Torin ja Vintedin lomakkeet rinnakkain; molemmat täyttyvät itsestään, julkaisu jää käyttäjälle.
+  async function publishBoth() {
+    const targets = ['tori', 'vinted'].filter((id) => {
+      const l = listings[id]
+      return enabled[id] !== false && (!l || l.status === 'pending' || l.status === 'removed')
+    })
+    for (const id of targets) {
+      if (!(await publish(id, { quiet: true }))) break
+    }
+    await load()
+    onChanged?.()
   }
 
   async function setListingUrl(platform) {
@@ -330,7 +349,11 @@ export default function ItemEditor({ itemId, user, settings, extVersion, onClose
               <datalist id="tori-cats">{TORI_PATHS.map((p) => <option key={p} value={p} />)}</datalist>
             </label>
             <label className="field">Vintedin kategoria
-              <input value={item.category_vinted} onChange={(e) => set('category_vinted', e.target.value)} placeholder="Men > Shoes > Trainers" />
+              <input list="vinted-cats" value={item.category_vinted} onChange={(e) => set('category_vinted', e.target.value)} placeholder="Miehet > Vaatteet > … > Hupparit ja collegepuserot" />
+              <datalist id="vinted-cats">{VINTED_PATHS.map((p) => <option key={p} value={p} />)}</datalist>
+              {item.category_vinted && !VINTED_CATEGORY_IDS[item.category_vinted] && (
+                <span className="small" style={{ color: 'var(--warn)' }}>Ei Vintedin kategoriapuussa – valitse listasta, muuten kategoria jää valitsematta</span>
+              )}
             </label>
             <button className="btn ghost sm" style={{ alignSelf: 'flex-start' }} onClick={() => setShowEn(!showEn)}>
               {showEn ? '▾' : '▸'} Englanninkielinen ilmoitus (eBay)
@@ -364,6 +387,10 @@ export default function ItemEditor({ itemId, user, settings, extVersion, onClose
             <div className="row" style={{ marginBottom: 6 }}>
               <h2>Julkaisu</h2>
               {!extVersion && <span className="small muted">– asenna Chrome-laajennus (Asetukset)</span>}
+              <div className="spacer" />
+              {extVersion && !isSold && ['tori', 'vinted'].some((id) => enabled[id] !== false && (!listings[id] || ['pending', 'removed'].includes(listings[id].status))) && (
+                <button className="btn sm primary" onClick={publishBoth} title="Avaa Torin ja Vintedin lomakkeet rinnakkain ja täytä ne">Julkaise molempiin</button>
+              )}
             </div>
             {Object.values(PLATFORMS).filter((p) => enabled[p.id] !== false || listings[p.id]).map((p) => {
               const l = listings[p.id]

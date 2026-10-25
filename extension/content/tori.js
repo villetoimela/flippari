@@ -58,16 +58,23 @@
     if (!host) return { state: 'wait', value: 'ei tässä kategoriassa' }
     const input = innerInput(host)
     if (!input) return { state: 'warn', value: 'kenttää ei löytynyt' }
-    input.focus()
-    F.setNativeValue(input, String(wanted))
-    await F.sleep(700)
-    const lis = [...(host.shadowRoot?.querySelectorAll('li[role="option"]') || [])]
-    const hit = pickOption(lis.map((li) => ({ el: li, text: li.textContent.trim() })), wanted)
-    if (hit) {
-      F.realClick(hit.el)
-      await F.sleep(300)
-      return { state: 'ok', value: hit.text }
+    // Torin listassa on usein vain perusnimi ("Carhartt", ei "Carhartt WIP") -> lyhennä hakua sana kerrallaan.
+    const words = String(wanted).trim().split(/\s+/)
+    for (let n = words.length; n >= 1; n--) {
+      const q = words.slice(0, n).join(' ')
+      input.focus()
+      F.setNativeValue(input, q)
+      await F.sleep(700)
+      const lis = [...(host.shadowRoot?.querySelectorAll('li[role="option"]') || [])]
+      const opts = lis.map((li) => ({ el: li, text: li.textContent.trim() }))
+      const hit = pickOption(opts, wanted) || pickOption(opts, q)
+      if (hit) {
+        F.realClick(hit.el)
+        await F.sleep(300)
+        return { state: 'ok', value: hit.text }
+      }
     }
+    F.setNativeValue(input, String(wanted))
     F.blur(input)
     return { state: 'warn', value: `"${wanted}" kirjoitettu – tarkista` }
   }
@@ -116,8 +123,45 @@
     return
   }
 
+  // ---------- vaihe 3: toimitus (ToriDiilin paketin koko) ----------
+  // Flipparin kokoluokka: S = kirjekuori, M = kenkälaatikko, L = muuttolaatikko, XL = vain nouto.
+  const PACKAGE_TORI = { S: 'Peruspaketti', M: 'Peruspaketti', L: 'Iso paketti', XL: 'En voi lähettää' }
+  let deliveryDone = false
+  async function deliveryStage() {
+    if (deliveryDone) return
+    deliveryDone = true
+    const want = PACKAGE_TORI[p.shipping_size] || 'Peruspaketti'
+    F.renderPanel({ status: 'Valitaan ToriDiilin paketin koko…', rows: [] })
+    const radios = await F.waitFor(() => {
+      const r = [...document.querySelectorAll('w-radio[name="package-size"]')]
+      return r.length ? r : null
+    }, { timeout: 15000 })
+    // Radiot ovat nimettömiä: nimi luetaan pienimmästä ylemmästä elementistä, jossa on vain tämä radio.
+    const labelOf = (r) => {
+      let n = r, text = ''
+      while (n.parentElement && n.parentElement.querySelectorAll('w-radio[name="package-size"]').length === 1) {
+        n = n.parentElement
+        text = (n.innerText || '').trim()
+      }
+      return text
+    }
+    const hit = radios?.find((r) => F.norm(labelOf(r)).startsWith(F.norm(want)))
+    const rows = [{ label: 'Paketin koko', state: hit ? 'ok' : 'warn', value: hit ? want : `"${want}" – valitse itse` }]
+    if (hit && !hit.checked) {
+      F.realClick(hit)
+      await F.sleep(400)
+    }
+    F.renderPanel({
+      status: hit ? 'Paketin koko valittu. Paina Torin "Jatka" ja julkaise.' : 'Valitse paketin koko ja paina "Jatka".',
+      rows,
+      note: 'Kun ilmoitus on julkaistu, paina "Julkaistu ✓", jos linkki ei tallentunut itsestään.',
+      actions: [{ label: 'Julkaistu ✓', primary: true, onClick: () => markListed() }],
+    })
+  }
+
   // ---------- vaihe 2: lomake ----------
-  const m = location.pathname.match(/\/recommerce\/create\/(\d+)/)
+  const delivery = location.pathname.match(/\/recommerce\/delivery\/(\d+)/)
+  const m = location.pathname.match(/\/recommerce\/create\/(\d+)/) || delivery
   if (!m) return
   window.__flippariToriForm = true
   const draftId = m[1]
@@ -210,6 +254,7 @@
       if (wCombo('Koko') && p.size) rows.push({ label: 'Koko', ...(await setCombo('Koko', p.size)) })
       if (wCombo('Merkki') && p.brand) rows.push({ label: 'Merkki', ...(await setCombo('Merkki', p.brand)) })
       if (wCombo('Materiaali') && p.material) rows.push({ label: 'Materiaali', ...(await setCombo('Materiaali', p.material)) })
+      if (wSelect('Istuvuus')) rows.push({ label: 'Istuvuus', ...(await setSelect('Istuvuus', 'Normaali kokoon nähden', { timeout: 1500 })) })
       render('Täytetään…')
 
       // Tekstit
@@ -249,14 +294,16 @@
     }
   }
 
-  // Tunnista julkaisu automaattisesti URL:n perusteella
+  // Tunnista julkaisu automaattisesti URL:n perusteella; toimitusvaihe täytetään kun sinne siirrytään
   F.onUrlChange((url) => {
+    if (/\/recommerce\/delivery\/\d+/.test(url)) return deliveryStage()
     if (/\/forsale\/item\/\d+/.test(url) || /(receipt|kuitti|confirmation|success|vahvist)/i.test(url)) {
       markListed()
     }
   })
 
-  if (!job.filled) run()
+  if (delivery) deliveryStage()
+  else if (!job.filled) run()
   else render('Lomake on jo täytetty tässä välilehdessä.', { note: 'Paina "Täytä uudelleen", jos jokin kenttä tyhjeni.' })
 
   // ---------- poisto ----------

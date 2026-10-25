@@ -1,5 +1,6 @@
 // Tekoälytoiminnot Claude API:lla suoraan selaimesta (oma avain asetuksista).
 import { TORI_CATEGORY_TREE } from './toriCategories.js'
+import { VINTED_CATEGORY_TREE } from './vintedCategories.js'
 
 export const COLOR_CODES = [
   'BLACK', 'GREY', 'WHITE', 'CREAM', 'BODY', 'APRICOT', 'ORANGE', 'CORAL', 'RED', 'BURGUNDY', 'PINK', 'ROSE',
@@ -28,8 +29,8 @@ const LISTING_TOOL = {
       brand: { type: 'string', description: 'Merkki tai valmistaja sellaisena kuin se kirjoitetaan (esim. "Arc\'teryx", "Hoka"). Tyhjä jos ei tunnistettavissa.' },
       category: { type: 'string', description: 'Lyhyt yleiskategoria suomeksi, esim. "Miesten kengät > Lenkkarit".' },
       category_tori: { type: 'string', description: 'TÄSMÄLLEEN yksi polku annetusta Torin kategoriapuusta muodossa "Osasto > Alaosasto > Tuoteryhmä" (tuoteryhmä vain jos alaosastolla on niitä).' },
-      category_vinted: { type: 'string', description: 'Vintedin englanninkielinen kategoriapolku, esim. "Men > Shoes > Trainers" tai "Women > Clothing > Outerwear > Jackets > Denim jackets" tai "Home > Tableware > Mugs". Tyhjä jos tuote ei sovi Vintediin.' },
-      size: { type: 'string', description: 'Koko sellaisena kuin se lukee lapussa (M, 38, 42 1/3, W32 L32). Tyhjä jos ei koskaan.' },
+      category_vinted: { type: 'string', description: 'TÄSMÄLLEEN yksi polku annetusta Vintedin kategoriapuusta muodossa "Yläkategoria > Lehti", esim. "Miehet > Vaatteet > Neulepuserot ja villapaidat > Hupparit ja collegepuserot". Valitse sukupuoli tuotteen mukaan (unisex ja epäselvä = Miehet). Tyhjä jos tuote ei sovi puuhun.' },
+      size: { type: 'string', description: 'Koko täsmälleen sellaisena kuin se näkyy kuvan lapussa, kengän kielessä tai myyjän lisätiedoissa (M, 38, 42 1/3, W32 L32). ÄLÄ ARVAA ulkonäöstä: jos kokoa ei näy, jätä tyhjäksi. Kengissä EU-koko; jos lapussa on vain UK/US-koko, jätä tyhjäksi.' },
       condition: { type: 'string', enum: ['new_tags', 'new', 'very_good', 'good', 'satisfactory'] },
       color: { type: 'string', enum: COLOR_CODES, description: 'Pääväri koodina.' },
       material: { type: 'string', description: 'Päämateriaali suomeksi (esim. Puuvilla, Nahka, Keramiikka). Tyhjä jos ei tiedossa.' },
@@ -85,10 +86,12 @@ export async function generateListing({ apiKey, model, imageUrls, hints, signatu
       type: 'text',
       text: [
         'Olet kokenut suomalainen jälleenmyyjä (Tori, Vinted, eBay). Tee kuvien perusteella myynti-ilmoitus.',
-        'Ole rehellinen kunnosta. Älä keksi tietoja, joita kuvista ei näe – jätä kenttä tyhjäksi.',
+        'Ole rehellinen kunnosta. Älä keksi tietoja, joita kuvista ei näe – jätä kenttä tyhjäksi. Erityisesti kokoa ei saa arvata.',
+        'Sukupuoli (Vinted- ja Tori-kategoria): naisten jos lapussa, mallissa tai lisätiedoissa on naisten/women/W/damski, muuten miesten.',
         hints ? `Myyjän lisätiedot (luota näihin): ${hints}` : '',
         signature ? `Lisää suomenkielisen kuvauksen loppuun tämä allekirjoitus sellaisenaan:\n${signature}` : '',
         `Torin kategoriapuu (valitse category_tori tästä täsmälleen samoilla nimillä):\n${TORI_CATEGORY_TREE}`,
+        `Vintedin kategoriapuu (valitse category_vinted tästä: rivin alku + yksi "|"-eroteltu lehti, täsmälleen samoilla nimillä):\n${VINTED_CATEGORY_TREE}`,
       ].filter(Boolean).join('\n\n'),
     },
   ]
