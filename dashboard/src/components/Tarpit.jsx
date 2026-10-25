@@ -183,7 +183,10 @@ export default function Tarpit({ settings, onCreateItem }) {
                   <div className="title">{f.title}</div>
                   <div className="small muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.subtitle}</div>
                   <div className="row" style={{ justifyContent: 'space-between' }}>
-                    <strong className="mono">{eur(f.price)}</strong>
+                    <span>
+                      <strong className="mono">{eur(f.price)}</strong>
+                      {/posti/.test(f.subtitle || '') && <span className="small muted"> sis. posti + suoja</span>}
+                    </span>
                     <span className="small mono" style={{ color: 'var(--accent)', fontWeight: 800 }}>+{eur(profitOf(f))}</span>
                   </div>
                   <div className="small muted">
