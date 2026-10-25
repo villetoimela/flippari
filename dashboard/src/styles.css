@@ -196,8 +196,10 @@ input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); ou
 /* Tärpit-kortti: tasakorkeat kortit, kate erottuu, aika ja alusta kuvan päällä, napit alareunassa */
 .deals { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
 .deal { overflow: hidden; display: flex; flex-direction: column; }
-.deal-img { position: relative; display: grid; place-items: center; aspect-ratio: 1; background: var(--panel-2); }
-.deal-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Kiinteä 4:5-kehys: kuvan oma muoto (pysty/vaaka) ei saa muuttaa kortin korkeutta -> ei tyhjää tilaa */
+.deal-img { position: relative; display: block; aspect-ratio: 4 / 5; overflow: hidden; background: var(--panel-2); }
+.deal-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.deal-img .noimg { position: absolute; inset: 0; display: grid; place-items: center; }
 .deal-img .pill { position: absolute; font-size: 11px; font-weight: 700; line-height: 1.2; padding: 3px 8px; border-radius: 999px; }
 .deal-img .pill.hot { top: 8px; left: 8px; background: var(--danger); color: #fff; }
 .deal-img .pill.age { top: 8px; right: 8px; background: rgba(0, 0, 0, .62); color: #fff; }

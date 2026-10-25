@@ -201,7 +201,7 @@ export default function Tarpit({ settings, onCreateItem }) {
             return (
               <article key={f.id} className="card deal">
                 <a className="deal-img" href={f.url} target="_blank" rel="noreferrer" aria-label={f.title}>
-                  {f.image ? <img src={f.image} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <span className="small muted">Ei kuvaa</span>}
+                  {f.image ? <img src={f.image} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <span className="noimg small muted">Ei kuvaa</span>}
                   {f.hot && <span className="pill hot">Kuuma</span>}
                   <span className="pill age">{agoShort(f.first_seen)}</span>
                   {f.platform !== 'vinted' && <span className="pill src">{PLATFORMS[f.platform]?.name || f.platform}</span>}
