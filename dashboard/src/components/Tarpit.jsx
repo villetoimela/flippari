@@ -13,6 +13,29 @@ const ago = (iso) => {
   return h < 24 ? `${h} t sitten` : `${Math.round(h / 24)} pv sitten`
 }
 
+const agoShort = (iso) => {
+  if (!iso) return ''
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
+  if (m < 1) return 'nyt'
+  if (m < 60) return `${m} min`
+  const h = Math.round(m / 60)
+  return h < 24 ? `${h} t` : `${Math.round(h / 24)} pv`
+}
+
+const eur0 = (n) => new Intl.NumberFormat('fi-FI', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(Number(n) || 0)
+
+// Alaotsikko tulee muodossa "merkki · koko · kunto · posti X €" -> koko ja kunto ensin (tärkeimmät), merkki viimeiseksi.
+const CONDITIONS = { 'Uusi, jossa hintalappu': 'Uusi, lappu', 'Uusi ilman hintalappua': 'Uusi', 'Erittäin hyvä': 'Erittäin hyvä', 'Hyvä': 'Hyvä', 'Tyydyttävä': 'Tyydyttävä' }
+function splitSubtitle(subtitle) {
+  const parts = (subtitle || '').split(' · ').filter(Boolean)
+  const post = parts.find((x) => x.startsWith('posti '))?.slice(6)
+  const rest = parts.filter((x) => !x.startsWith('posti '))
+  const cond = rest.find((x) => x in CONDITIONS)
+  const size = rest.find((x) => x !== cond && x.length <= 16 && /^(\d|X{0,3}[SML]\b|XXL|XL|Yksi)/i.test(x))
+  const brand = rest.filter((x) => x !== cond && x !== size).join(' · ')
+  return { post, meta: [size, cond && CONDITIONS[cond], brand].filter(Boolean).join(' · ') }
+}
+
 const profitOf = (f) => (f.est_net != null ? Number(f.est_net) : f.discount != null ? Number(f.discount) : 0)
 
 export default function Tarpit({ settings, onCreateItem }) {
@@ -170,44 +193,43 @@ export default function Tarpit({ settings, onCreateItem }) {
           <p className="muted">Tärpit tulevat flip-radarilta. Varmista että se on käynnissä (<code>./run.sh</code>) ja Flippari-vienti on päällä sen config.json:ssa.</p>
         </div>
       ) : (
-        <div className="items">
+        <div className="items deals">
           {visible.map((f) => {
             const ev = evals[f.id]
-            const parts = (f.subtitle || '').split(' · ')
-            const post = parts.find((x) => x.startsWith('posti '))?.slice(6)   // "5,87 €" tai "~12 € arvio, Tanska"
-            const subtitle = parts.filter((x) => !x.startsWith('posti ')).join(' · ')
+            const { post, meta } = splitSubtitle(f.subtitle)
+            const saved = f.status === 'saved'
             return (
-              <article key={f.id} className="card item" style={{ cursor: 'default' }}>
-                <a className="thumb" href={f.url} target="_blank" rel="noreferrer" style={{ position: 'relative' }}>
-                  {f.image ? <img src={f.image} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <span className="small">Ei kuvaa</span>}
-                  {f.hot && <span className="main" style={{ position: 'absolute', top: 6, left: 6, background: '#dc2626', color: '#fff', fontSize: 11, fontWeight: 800, padding: '2px 7px', borderRadius: 6 }}>🔥 KUUMA</span>}
+              <article key={f.id} className="card deal">
+                <a className="deal-img" href={f.url} target="_blank" rel="noreferrer" aria-label={f.title}>
+                  {f.image ? <img src={f.image} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <span className="small muted">Ei kuvaa</span>}
+                  {f.hot && <span className="pill hot">Kuuma</span>}
+                  <span className="pill age">{agoShort(f.first_seen)}</span>
+                  {f.platform !== 'vinted' && <span className="pill src">{PLATFORMS[f.platform]?.name || f.platform}</span>}
                 </a>
-                <div className="meta">
-                  <div className="title">{f.title}</div>
-                  <div className="small muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitle}</div>
-                  <div className="row" style={{ justifyContent: 'space-between' }}>
-                    <span>
-                      <strong className="mono">{eur(f.price)}</strong>
-                      {post && <span className="small muted"> sis. posti {post}</span>}
-                    </span>
-                    <span className="small mono" style={{ color: 'var(--accent)', fontWeight: 800 }}>+{eur(profitOf(f))}</span>
-                  </div>
-                  <div className="small muted">{ago(f.first_seen)}</div>
-                  <div className="badges">
-                    <span className={`badge ${f.platform}`}>{PLATFORMS[f.platform]?.name || f.platform}</span>
+                <div className="deal-body">
+                  <a className="deal-title" href={f.url} target="_blank" rel="noreferrer">{f.title}</a>
+                  <div className="deal-meta">{meta}</div>
+                  <div className="deal-price">
+                    <div>
+                      <div className="price mono">{eur(f.price)}</div>
+                      <div className="small muted">{post ? `sis. posti ${post}` : 'ilman postia'}</div>
+                    </div>
+                    <span className="profit mono" title="Arvioitu kate">+{eur0(profitOf(f))}</span>
                   </div>
                   {ev && !ev.busy && (
-                    <div className="small" style={{ marginTop: 4 }}>
-                      <strong className={`verdict ${/ÄLÄ/.test(ev.verdict) ? 'ala' : /HARKITSE/.test(ev.verdict) ? 'harkitse' : 'osta'}`} style={{ fontSize: 13 }}>{ev.verdict}</strong>{' '}
+                    <div className="small">
+                      <strong className={`verdict ${/ÄLÄ/.test(ev.verdict) ? 'ala' : /HARKITSE/.test(ev.verdict) ? 'harkitse' : 'osta'}`}>{ev.verdict}</strong>{' '}
                       ~{eur(ev.profit)} · {ev.reasoning}
                     </div>
                   )}
-                  <div className="row" style={{ marginTop: 6 }}>
+                  <div className="deal-actions">
                     <a className="btn sm primary" href={f.url} target="_blank" rel="noreferrer">Avaa ↗</a>
-                    <button className="btn sm" onClick={() => evaluate(f)} disabled={ev?.busy} title="Tarkka tekoälyarvio verkkohaulla">{ev?.busy ? <span className="spinner" /> : 'Arvioi'}</button>
-                    <button className="btn sm ghost" onClick={() => bought(f)} title="Ostin tämän → varastoon">Ostin</button>
-                    {f.status !== 'saved' && <button className="btn sm ghost" onClick={() => setStatus(f, 'saved')} title="Tallenna">★</button>}
-                    <button className="btn sm ghost" onClick={() => setStatus(f, 'dismissed')} title="Turha – piilota">✕</button>
+                    <div className="deal-tools">
+                      <button className="btn sm ghost" onClick={() => bought(f)} title="Ostin tämän → varastoon">Ostin</button>
+                      <button className="btn sm ghost" onClick={() => evaluate(f)} disabled={ev?.busy} title="Tarkka tekoälyarvio verkkohaulla">{ev?.busy ? <span className="spinner" /> : 'Arvioi'}</button>
+                      <button className={`icon-btn ${saved ? 'on' : ''}`} onClick={() => setStatus(f, saved ? 'new' : 'saved')} aria-label={saved ? 'Poista tallennuksista' : 'Tallenna'} title={saved ? 'Poista tallennuksista' : 'Tallenna'}>{saved ? '★' : '☆'}</button>
+                      <button className="icon-btn" onClick={() => setStatus(f, 'dismissed')} aria-label="Piilota" title="Turha – piilota">✕</button>
+                    </div>
                   </div>
                 </div>
               </article>
