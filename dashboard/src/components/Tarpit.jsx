@@ -192,9 +192,6 @@ export default function Tarpit({ settings, onCreateItem }) {
                     </span>
                     <span className="small mono" style={{ color: 'var(--accent)', fontWeight: 800 }}>+{eur(profitOf(f))}</span>
                   </div>
-                  <div className="small muted">
-                    {f.est_resale_low ? `myynti ${eur(f.est_resale_low)}–${eur(f.est_resale_high)}` : `vertailu ${eur(f.median)}`} · {ago(f.first_seen)}
-                  </div>
                   <div className="badges">
                     <span className={`badge ${f.platform}`}>{PLATFORMS[f.platform]?.name || f.platform}</span>
                   </div>
